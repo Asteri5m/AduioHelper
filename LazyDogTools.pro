@@ -30,6 +30,10 @@ FORMS += \
 #设置图标
 RC_ICONS = LD_64.ico
 
+#添加版本
+VERSION = 0.0.1
+
+
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
