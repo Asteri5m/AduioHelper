@@ -11,6 +11,8 @@ LazyDog::LazyDog(QWidget *parent)
 {
     ui->setupUi(this);
 
+    //初始化系统托盘
+    InitSystemTray();
     //初始化音频设备列表
     InitAudioDeviceList();
     //初始化进程窗口
@@ -28,6 +30,37 @@ LazyDog::LazyDog(QWidget *parent)
 LazyDog::~LazyDog()
 {
     delete ui;
+}
+
+//初始化系统托盘
+void LazyDog::InitSystemTray()
+{
+    // 创建系统托盘图标
+    QSystemTrayIcon *trayIcon = new QSystemTrayIcon(QIcon(":/LD_64.ico"));
+    trayIcon->show();
+
+    // 创建托盘菜单
+    QMenu *trayMenu = new QMenu();
+    QAction *mainPageAction = new QAction("主界面");
+    modeChooseAction = new QAction("进程模式");
+    QAction *settingsAction = new QAction("设置");
+    QAction *exitAction = new QAction("退出");
+
+    // 将菜单项添加到托盘菜单
+    trayMenu->addAction(mainPageAction);
+    trayMenu->addAction(modeChooseAction);
+    trayMenu->addAction(settingsAction);
+    trayMenu->addSeparator(); // 添加分隔线
+    trayMenu->addAction(exitAction);
+
+    // 将托盘菜单设置为系统托盘图标的菜单
+    trayIcon->setContextMenu(trayMenu);
+
+    // 处理菜单项的点击事件
+    connect(mainPageAction, &QAction::triggered, this, &LazyDog::tray_mainPage_triggered);
+    connect(modeChooseAction, &QAction::triggered, this, &LazyDog::tray_modeChoose_triggered);
+    connect(settingsAction, &QAction::triggered, this, &LazyDog::tray_settings_triggered);
+    connect(exitAction, &QAction::triggered, this, &LazyDog::tray_exit_triggered);
 }
 
 //初始化进程窗口
@@ -254,8 +287,8 @@ QList<BindInfo> LazyDog::LoadBindListFromXml()
 //重写关闭信号
 void LazyDog::closeEvent(QCloseEvent *event)
 {
-    SaveBindListToXml();
-    event->accept();
+    this->hide();
+    event->ignore();
 }
 
 //槽函数：刷新任务列表
@@ -297,6 +330,7 @@ void LazyDog::on_pushButton_add_clicked()
     ShowDebugText(D_Info, "绑定成功, 信息如下:");
     ShowDebugText(D_Info, "进程ID: " + QString::number(processlist.at(tabviewindex).pid) + ", 进程名: " + infobuf.taskname);
     ShowDebugText(D_Info, "绑定设备: " + audiodevicename);
+    SaveBindListToXml();
 }
 
 //槽函数：更改绑定
@@ -323,6 +357,7 @@ void LazyDog::on_pushButton_change_clicked()
 
     RenewMonitorTabview();
     ShowDebugText(D_Info,infobuf.taskname + " 已更改绑定设备：" + infobuf.devicename);
+    SaveBindListToXml();
 }
 
 //槽函数：取消绑定
@@ -355,6 +390,7 @@ void LazyDog::on_pushButton_delete_clicked()
 
     RenewMonitorTabview();
     ShowDebugText(D_Info,deltaskname + " 已取消绑定设备");
+    SaveBindListToXml();
 }
 
 //槽函数：自动任务
@@ -381,4 +417,35 @@ void LazyDog::auto_change_outaudiodevice()
         }
     }
 }
+
+//托盘---主界面
+void LazyDog::tray_mainPage_triggered()
+{
+    if (this->isHidden())
+        this->show();
+    this->activateWindow();
+}
+
+//托盘---选择模式
+void LazyDog::tray_modeChoose_triggered()
+{
+    QString modeText = modeChooseAction->text()=="进程模式" ? "窗口模式" : "进程模式";
+    modeChooseAction->setText(modeText);
+}
+
+//托盘---设置
+void LazyDog::tray_settings_triggered()
+{
+    ui->mainWidget->setCurrentWidget(ui->tab_seting);
+    if (this->isHidden())
+        this->show();
+}
+
+//托盘---退出
+void LazyDog::tray_exit_triggered()
+{
+    QApplication::quit();
+}
+
+
 

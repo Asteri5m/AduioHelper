@@ -15,6 +15,10 @@
 #include <QXmlStreamWriter>
 #include <QXmlStreamReader>
 #include <QCloseEvent>
+#include <QSystemTrayIcon>
+#include <QMenu>
+#include <QMessageBox>
+#include <QAction>
 
 
 QT_BEGIN_NAMESPACE
@@ -38,11 +42,16 @@ private slots:
     void on_pushButton_delete_clicked();
     // 手动连接
     void auto_change_outaudiodevice();
+    void tray_mainPage_triggered();
+    void tray_modeChoose_triggered();
+    void tray_settings_triggered();
+    void tray_exit_triggered();
 
 private:
     Ui::LazyDog *ui;
     TaskMonitor* taskmonitor;
     AudioManager* audiomanager;
+    QAction *modeChooseAction;
 
     AudioDeviceList outaudiodevicelist;
     ProcessList processlist;
@@ -51,6 +60,7 @@ private:
     BindMap bindmap;
 
 private:
+    void InitSystemTray();
     void InitProcessTabview();
     void InitMonitorTabview();
     void InitAudioDeviceList();

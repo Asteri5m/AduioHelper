@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>LD_64.ico</file>
+    </qresource>
+</RCC>
