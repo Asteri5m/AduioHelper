@@ -36,7 +36,8 @@ LazyDog::~LazyDog()
 void LazyDog::InitSystemTray()
 {
     // 创建系统托盘图标
-    QSystemTrayIcon *trayIcon = new QSystemTrayIcon(QIcon(":/LD_64.ico"));
+    trayIcon = new QSystemTrayIcon(QIcon(":/LD_64.ico"));
+    trayIcon->setToolTip("LazyDogTools");
     trayIcon->show();
 
     // 创建托盘菜单
@@ -61,6 +62,8 @@ void LazyDog::InitSystemTray()
     connect(modeChooseAction, &QAction::triggered, this, &LazyDog::tray_modeChoose_triggered);
     connect(settingsAction, &QAction::triggered, this, &LazyDog::tray_settings_triggered);
     connect(exitAction, &QAction::triggered, this, &LazyDog::tray_exit_triggered);
+
+    trayIcon->showMessage("程序启动成功", "欢迎使用，您的工具已准备就绪", QSystemTrayIcon::Information, 5000);
 }
 
 //初始化进程窗口
@@ -412,7 +415,9 @@ void LazyDog::auto_change_outaudiodevice()
             audiomanager->SetOutAudioDevice(infobuf.deviceid); // 切换设备
             qDebug()<< "切换设备" << infobuf.deviceid;
             currentbindinfo = infobuf;
-            ShowDebugText(D_Info, QString("检测到进程%1，已切换至设备%2").arg(infobuf.taskname).arg(infobuf.devicename));
+            QString buffer = QString("检测到进程%1，已切换至设备%2").arg(infobuf.taskname).arg(infobuf.devicename);
+            ShowDebugText(D_Info, buffer);
+            trayIcon->showMessage("切换设备", buffer, QSystemTrayIcon::Information, 5000); // 5000毫秒（5秒）后关闭通知
             return;
         }
     }
@@ -446,6 +451,3 @@ void LazyDog::tray_exit_triggered()
 {
     QApplication::quit();
 }
-
-
-

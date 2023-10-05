@@ -51,6 +51,7 @@ private:
     Ui::LazyDog *ui;
     TaskMonitor* taskmonitor;
     AudioManager* audiomanager;
+    QSystemTrayIcon *trayIcon;
     QAction *modeChooseAction;
 
     AudioDeviceList outaudiodevicelist;
