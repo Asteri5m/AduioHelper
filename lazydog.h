@@ -42,6 +42,7 @@ private slots:
     void on_pushButton_delete_clicked();
     // 手动连接
     void auto_change_outaudiodevice();
+    void trayIcon_activated(QSystemTrayIcon::ActivationReason reason);
     void tray_mainPage_triggered();
     void tray_modeChoose_triggered();
     void tray_settings_triggered();

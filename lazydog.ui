@@ -335,6 +335,11 @@
     </item>
    </layout>
   </widget>
+  <action name="action123123">
+   <property name="text">
+    <string>123123</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

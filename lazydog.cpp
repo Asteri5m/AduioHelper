@@ -59,6 +59,7 @@ void LazyDog::InitSystemTray()
 
     // 处理菜单项的点击事件
     connect(mainPageAction, &QAction::triggered, this, &LazyDog::tray_mainPage_triggered);
+    connect(trayIcon, &QSystemTrayIcon::activated, this, &LazyDog::trayIcon_activated);
     connect(modeChooseAction, &QAction::triggered, this, &LazyDog::tray_modeChoose_triggered);
     connect(settingsAction, &QAction::triggered, this, &LazyDog::tray_settings_triggered);
     connect(exitAction, &QAction::triggered, this, &LazyDog::tray_exit_triggered);
@@ -423,11 +424,24 @@ void LazyDog::auto_change_outaudiodevice()
     }
 }
 
+//托盘---双击
+void LazyDog::trayIcon_activated(QSystemTrayIcon::ActivationReason reason)
+{
+    if (reason == QSystemTrayIcon::DoubleClick)
+    {
+        // 双击托盘图标时显示主窗口
+        if (this->isHidden())
+            this->show();
+        this->activateWindow();
+    }
+}
+
 //托盘---主界面
 void LazyDog::tray_mainPage_triggered()
 {
     if (this->isHidden())
         this->show();
+    ui->mainWidget->setCurrentWidget(ui->tab_process);
     this->activateWindow();
 }
 
