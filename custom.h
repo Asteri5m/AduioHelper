@@ -42,6 +42,25 @@ struct BindInfo
 #define D_Error "ERROR"
 
 #define bindfile "bindlist.xml"
+#define configfile "config.dat"
 
+//程序的配置信息，由设置页修改
+#define LazyConfig QMap<QString, QString>
+const struct Config
+{
+    QString Autostart = "autostart";
+    QString Adminstart = "adminstart";
+    QString Autohidden = "autohidden";
+    QString Changemsg = "changemsg";
+    QString Autochecknew = "autochecknew";
+    QString Defaultdevide = "defaultdevice";
+    QString Defaultdevideid = "defaultdeviceid";
+    QString Defaultdevidename = "defaultdevicename";
+    QString Mode = "mode";
+    QString Keystart = "keystart";
+    QString Keychangemode = "keychangemode";
+    QString Keychangup = "keychangeup";
+    QString Keychangdown = "keychangedown";
+}Config;
 
 #endif // CUSTOM_H

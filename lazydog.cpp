@@ -19,6 +19,8 @@ LazyDog::LazyDog(QWidget *parent)
     InitProcessTabview();
     //初始化监控窗口
     InitMonitorTabview();
+    //初始化配置（设置）
+    InitSettingConfig();
 
     //链接槽函数
     QTimer *timer = new QTimer(this);
@@ -44,12 +46,14 @@ void LazyDog::InitSystemTray()
     QMenu *trayMenu = new QMenu();
     QAction *mainPageAction = new QAction("主界面");
     modeChooseAction = new QAction("进程模式");
+    QAction *checknewAction = new QAction("检查更新");
     QAction *settingsAction = new QAction("设置");
     QAction *exitAction = new QAction("退出");
 
     // 将菜单项添加到托盘菜单
     trayMenu->addAction(mainPageAction);
     trayMenu->addAction(modeChooseAction);
+    trayMenu->addAction(checknewAction);
     trayMenu->addAction(settingsAction);
     trayMenu->addSeparator(); // 添加分隔线
     trayMenu->addAction(exitAction);
@@ -61,6 +65,7 @@ void LazyDog::InitSystemTray()
     connect(mainPageAction, &QAction::triggered, this, &LazyDog::tray_mainPage_triggered);
     connect(trayIcon, &QSystemTrayIcon::activated, this, &LazyDog::trayIcon_activated);
     connect(modeChooseAction, &QAction::triggered, this, &LazyDog::tray_modeChoose_triggered);
+    connect(checknewAction, &QAction::triggered, this, &LazyDog::tray_checkNew_triggered);
     connect(settingsAction, &QAction::triggered, this, &LazyDog::tray_settings_triggered);
     connect(exitAction, &QAction::triggered, this, &LazyDog::tray_exit_triggered);
 
@@ -116,6 +121,87 @@ void LazyDog::InitMonitorTabview()
     RenewMonitorTabview();
 }
 
+// 初始化配置（设置）
+void LazyDog::InitSettingConfig()
+{
+    QFile file(configfile);
+    bool readfileOK = true;
+    if (file.open(QIODevice::ReadOnly))
+    {
+        QDataStream in(&file);
+        in >> lazyconfig;
+        file.close();
+    }
+    else
+        readfileOK = false;
+
+    if (lazyconfig.isEmpty() || !readfileOK)
+    {
+        ShowDebugText(D_Error, "读取配置文件失败，正在初始化设置");
+        lazyconfig[Config.Autostart] = "false";
+        lazyconfig[Config.Adminstart] = "false";
+        lazyconfig[Config.Autochecknew] = "true";
+        lazyconfig[Config.Autohidden] = "true";
+        lazyconfig[Config.Changemsg] = "true";
+        lazyconfig[Config.Defaultdevide] = "false";
+        lazyconfig[Config.Defaultdevideid] = "";
+        lazyconfig[Config.Defaultdevidename] = "";
+        lazyconfig[Config.Mode] = "process";
+        lazyconfig[Config.Keystart] = "";
+        lazyconfig[Config.Keychangemode] = "";
+        lazyconfig[Config.Keychangup] = "";
+        lazyconfig[Config.Keychangdown] = "";
+        SaveSettingConfig();
+    }
+    else
+        ShowDebugText(D_Info, "读取配置文件成功，成功导入设置选项");
+
+    // 输出从文件中加载的数据
+    QMap<QString, QString>::const_iterator it;
+    for (it = lazyconfig.constBegin(); it != lazyconfig.constEnd(); ++it) {
+        qDebug() << it.key() << ": " << it.value();
+    }
+
+    if (lazyconfig.value(Config.Autostart) == "true")
+        ui->checkBox_autostart->setChecked(true);
+
+    if (lazyconfig.value(Config.Adminstart) == "true")
+        ui->checkBox_adminstart->setChecked(true);
+
+    if (lazyconfig.value(Config.Autochecknew) == "true")
+    {
+        ui->checkBox_autochecknew->setChecked(true);
+        on_pushButton_checknew_clicked();
+    }
+
+    if (lazyconfig.value(Config.Autohidden) == "true")
+        ui->checkBox_autohidden->setChecked(true);
+    else
+        autoHidden = false;
+
+    if (lazyconfig.value(Config.Changemsg) == "true")
+        ui->checkBox_changemsg->setChecked(true);
+
+    if (lazyconfig.value(Config.Defaultdevide) == "true")
+        ui->checkBox_defaultdevice->setChecked(true);
+    else
+        ui->comboBox_defaultdevice->setEnabled(false);
+
+    if (lazyconfig.value(Config.Defaultdevidename) != ""
+        && outaudiodevicelist.value(Config.Defaultdevidename) != "" )
+        ui->comboBox_defaultdevice->setCurrentText(Config.Defaultdevidename);
+
+    if (lazyconfig.value(Config.Mode) == "process")
+        ui->radioButton_process->setChecked(true);
+    else
+    {
+        ui->radioButton_window->setChecked(true);
+        modeChooseAction->setText("窗口模式");
+    }
+
+    m_enableHandling = true;
+}
+
 //初始化音频设备列表
 void LazyDog::InitAudioDeviceList()
 {
@@ -130,6 +216,7 @@ void LazyDog::InitAudioDeviceList()
         // 设置关联选项
         ui->comboBox_add->addItem(outputiter.key());
         ui->comboBox_change->addItem(outputiter.key());
+        ui->comboBox_defaultdevice->addItem(outputiter.key());
     }
 }
 
@@ -288,6 +375,42 @@ QList<BindInfo> LazyDog::LoadBindListFromXml()
     return bindList;
 }
 
+//json数据转为QMap
+QMap<QString, QString> LazyDog::JsonToMap(QByteArray data)
+{
+    QMap<QString, QString> mapData;
+    QJsonParseError jsonError;
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(data, &jsonError);
+    if (jsonError.error != QJsonParseError::NoError)
+    {
+        QString buffer = QString("解析配置信息出错");
+        ShowDebugText(D_Error, "检查更新失败，" + buffer);
+        trayIcon->showMessage("检查更新失败", buffer, QSystemTrayIcon::Critical, 5000);
+        return mapData;
+    }
+    QJsonObject jsonObj = jsonDoc.object();
+    mapData.insert("version", jsonObj.value("version").toString());
+    mapData.insert("datatime", jsonObj.value("datatime").toString());
+
+    return mapData;
+}
+
+//保存设置到配置文件
+void LazyDog::SaveSettingConfig()
+{
+    // 写入QMap数据到文件
+    QFile file(configfile);
+    if (file.open(QIODevice::WriteOnly))
+    {
+        QDataStream out(&file);
+        out << lazyconfig;
+        file.close();
+        ShowDebugText(D_Info, "设置已更改，已成功保存至配置文件中");
+        return;
+    }
+    ShowDebugText(D_Warn, "设置已更改，保存至配置文件失败，仅本次运行生效");
+}
+
 //重写关闭信号
 void LazyDog::closeEvent(QCloseEvent *event)
 {
@@ -400,6 +523,28 @@ void LazyDog::on_pushButton_delete_clicked()
 //槽函数：自动任务
 void LazyDog::auto_change_outaudiodevice()
 {
+    // 模式选择
+    if (lazyconfig.value(Config.Mode) == "window")
+    {
+        QString windowprocessmame = taskmonitor->GetWindow();
+        if (bindmap.contains(windowprocessmame))
+        {
+            int index = bindmap[windowprocessmame];
+            BindInfo infobuf = bindlist.at(index);
+            // 检查是否需要切换设备,以免音频卡顿
+            if (currentbindinfo.deviceid == infobuf.deviceid) return;
+            audiomanager->SetOutAudioDevice(infobuf.deviceid); // 切换设备
+            qDebug()<< "切换设备" << infobuf.deviceid;
+            currentbindinfo = infobuf;
+            QString buffer = QString("检测到窗口%1，已切换至设备%2").arg(infobuf.taskname).arg(infobuf.devicename);
+            ShowDebugText(D_Info, buffer);
+            if (lazyconfig.value(Config.Changemsg) == "true")
+                trayIcon->showMessage("切换设备", buffer, QSystemTrayIcon::Information, 3000);
+            return;
+        }
+        return;
+    }
+
     // 获取当前进程状态
     ProcessList processlistbuf = taskmonitor->GetTaskList();
     ProcessList::const_iterator iter;
@@ -418,9 +563,24 @@ void LazyDog::auto_change_outaudiodevice()
             currentbindinfo = infobuf;
             QString buffer = QString("检测到进程%1，已切换至设备%2").arg(infobuf.taskname).arg(infobuf.devicename);
             ShowDebugText(D_Info, buffer);
-            trayIcon->showMessage("切换设备", buffer, QSystemTrayIcon::Information, 5000); // 5000毫秒（5秒）后关闭通知
+            if (lazyconfig.value(Config.Changemsg) == "true")
+                trayIcon->showMessage("切换设备", buffer, QSystemTrayIcon::Information, 3000);
             return;
         }
+    }
+
+    if (lazyconfig.value(Config.Defaultdevide) == "true")
+    {
+        if (currentbindinfo.deviceid == lazyconfig.value(Config.Defaultdevideid)) return;
+        audiomanager->SetOutAudioDevice(lazyconfig.value(Config.Defaultdevideid)); // 切换设备
+        currentbindinfo.deviceid = lazyconfig.value(Config.Defaultdevideid);
+        currentbindinfo.devicename = lazyconfig.value(Config.Defaultdevidename);
+        currentbindinfo.exepath = "";
+        currentbindinfo.taskname = "";
+        QString buffer = QString("未检测到任何进程，已切回默认设备%1").arg(currentbindinfo.devicename);
+        ShowDebugText(D_Info, buffer);
+        if (lazyconfig.value(Config.Changemsg) == "true")
+            trayIcon->showMessage("切换设备", buffer, QSystemTrayIcon::Information, 5000);
     }
 }
 
@@ -450,6 +610,18 @@ void LazyDog::tray_modeChoose_triggered()
 {
     QString modeText = modeChooseAction->text()=="进程模式" ? "窗口模式" : "进程模式";
     modeChooseAction->setText(modeText);
+
+    if (modeText == "进程模式")
+        ui->radioButton_process->click();
+    else
+        ui->radioButton_window->click();
+}
+
+
+//托盘---检查更新
+void LazyDog::tray_checkNew_triggered()
+{
+    ui->pushButton_checknew->click();
 }
 
 //托盘---设置
@@ -464,4 +636,189 @@ void LazyDog::tray_settings_triggered()
 void LazyDog::tray_exit_triggered()
 {
     QApplication::quit();
+}
+
+//设置---检查更新
+void LazyDog::on_pushButton_checknew_clicked()
+{
+    QString newVersion, oldVersion, newDatatime, oldDatatime;
+
+    QFile file("update/config");
+    if (!file.open(QIODevice::ReadOnly))
+    {
+        oldVersion = QCoreApplication::applicationVersion();
+        oldDatatime = 0;
+    } else
+    {
+        QByteArray data = file.readAll();
+        QMap<QString, QString> oldmap = JsonToMap(data);
+        if (oldmap.isEmpty())
+            return;
+        oldVersion = oldmap.value("version");
+        oldDatatime = oldmap.value("datatime");
+    }
+
+    QNetworkAccessManager manager;
+    QNetworkRequest request;
+    request.setUrl(QUrl("https://lazydog.asteri5m.icu/update/config"));
+    QNetworkReply *reply = manager.get(request);
+
+    QEventLoop loop;
+    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    loop.exec();
+    disconnect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+
+    if (reply->error() == QNetworkReply::NoError)
+    {
+        QByteArray data = reply->readAll();
+        QMap<QString, QString> newmap = JsonToMap(data);
+        if (newmap.isEmpty())
+            return;
+        newVersion = newmap.value("version");
+        newDatatime = newmap.value("datatime");
+    } else
+    {
+        QString buffer = QString("获取服务器数据失败");
+        ShowDebugText(D_Error, "检查更新失败，" + buffer);
+        trayIcon->showMessage("检查更新失败", buffer, QSystemTrayIcon::Critical, 5000);
+        return;
+    }
+
+    if(newVersion==oldVersion && newDatatime==oldDatatime)
+    {
+        QString buffer = QString("暂无更新版本");
+        ShowDebugText(D_Info, "检查更新完成，" + buffer);
+        trayIcon->showMessage("检查更新完成", buffer, QSystemTrayIcon::Information, 5000);
+
+    } else
+    {
+        bool isHidden = this->isHidden();
+        if (isHidden)
+            this->show();
+        QString buffer = QString("新版本：%1").arg(newVersion);
+        ShowDebugText(D_Info, "检查更新完成，" + buffer);
+        int choice = QMessageBox::question(nullptr,
+                                           "检查到新版本",
+                                           QString("是否马上更新？              \n\n当前版本：%1\n新版本：%2").arg(oldVersion).arg(newVersion),
+                                           QMessageBox::Yes | QMessageBox::No);
+
+        if (choice == QMessageBox::Yes)
+        {
+            QProcess process;
+            process.startDetached("update");
+            process.waitForStarted();
+            QApplication::quit();
+        }else {
+            if (isHidden)
+                this->hide();
+        }
+    }
+}
+
+//设置---开机自启动
+void LazyDog::on_checkBox_autostart_clicked(bool checked)
+{
+    QString boolString = checked ? "true" : "false";
+    lazyconfig[Config.Autostart] = boolString;
+    SaveSettingConfig();
+}
+
+//设置---管理员模式启动
+void LazyDog::on_checkBox_adminstart_clicked(bool checked)
+{
+    QString boolString = checked ? "true" : "false";
+    lazyconfig[Config.Adminstart] = boolString;
+    SaveSettingConfig();
+}
+
+//设置---自动检测跟新
+void LazyDog::on_checkBox_autochecknew_clicked(bool checked)
+{
+    QString boolString = checked ? "true" : "false";
+    lazyconfig[Config.Autochecknew] = boolString;
+    SaveSettingConfig();
+}
+
+//设置---开启默认设备
+void LazyDog::on_checkBox_defaultdevice_clicked(bool checked)
+{
+    QString boolString = checked ? "true" : "false";
+    lazyconfig[Config.Defaultdevide] = boolString;
+    lazyconfig[Config.Defaultdevidename] = ui->comboBox_defaultdevice->currentText();
+    lazyconfig[Config.Defaultdevideid] = outaudiodevicelist.value(lazyconfig.value(Config.Defaultdevidename));
+    ui->comboBox_defaultdevice->setEnabled(checked);
+    SaveSettingConfig();
+}
+
+//设置---启动自动隐藏
+void LazyDog::on_checkBox_autohidden_clicked(bool checked)
+{
+    QString boolString = checked ? "true" : "false";
+    lazyconfig[Config.Autohidden] = boolString;
+    SaveSettingConfig();
+}
+
+//设置---切换时通知
+void LazyDog::on_checkBox_changemsg_clicked(bool checked)
+{
+    QString boolString = checked ? "true" : "false";
+    lazyconfig[Config.Changemsg] = boolString;
+    SaveSettingConfig();
+}
+
+//设置---切换默认设备
+void LazyDog::on_comboBox_defaultdevice_currentTextChanged(const QString &devicename)
+{
+    // 初始化完成前忽略
+    if (!m_enableHandling) return;
+
+    lazyconfig[Config.Defaultdevidename] = devicename;
+    lazyconfig[Config.Defaultdevideid] = outaudiodevicelist.value(devicename);
+    SaveSettingConfig();
+}
+
+//设置---选择模式:进程
+void LazyDog::on_radioButton_process_clicked()
+{
+    lazyconfig[Config.Mode] = "process";
+    modeChooseAction->setText("进程模式");
+    SaveSettingConfig();
+}
+
+//设置---选择模式:窗口
+void LazyDog::on_radioButton_window_clicked()
+{
+    lazyconfig[Config.Mode] = "window";
+    modeChooseAction->setText("窗口模式");
+    SaveSettingConfig();
+}
+
+
+
+void LazyDog::on_keySequenceEdit_start_keySequenceChanged(const QKeySequence &keySequence)
+{
+    QKeySequence seq(QKeySequence::fromString(keySequence.toString().split(", ").first()));
+    ui->keySequenceEdit_start->setKeySequence(seq);
+}
+
+
+void LazyDog::on_keySequenceEdit_changemode_keySequenceChanged(const QKeySequence &keySequence)
+{
+    QKeySequence seq(QKeySequence::fromString(keySequence.toString().split(", ").first()));
+    ui->keySequenceEdit_changemode->setKeySequence(seq);
+}
+
+
+void LazyDog::on_keySequenceEdit_changeup_keySequenceChanged(const QKeySequence &keySequence)
+{
+    QKeySequence seq(QKeySequence::fromString(keySequence.toString().split(", ").first()));
+    ui->keySequenceEdit_changeup->setKeySequence(seq);
+}
+
+
+void LazyDog::on_keySequenceEdit_changedown_keySequenceChanged(const QKeySequence &keySequence)
+{
+
+    QKeySequence seq(QKeySequence::fromString(keySequence.toString().split(", ").first()));
+    ui->keySequenceEdit_changedown->setKeySequence(seq);
 }

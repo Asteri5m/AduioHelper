@@ -16,6 +16,7 @@ class TaskMonitor
 public:
     TaskMonitor();
     ProcessList GetTaskList();
+    QString GetWindow();
 
 private:
     void AddProcessMap(unsigned long, QString, QString, ProcessList*);

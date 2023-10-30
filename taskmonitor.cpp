@@ -97,6 +97,28 @@ ProcessList TaskMonitor::GetTaskList()
     return TaskList;
 }
 
+QString TaskMonitor::GetWindow()
+{
+    QString ForegroundWindowName;
+    HWND foregroundWindow = GetForegroundWindow();
+    if (foregroundWindow) {
+        DWORD processId;
+        GetWindowThreadProcessId(foregroundWindow, &processId);
+
+        HANDLE processHandle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, processId);
+        if (processHandle) {
+            WCHAR executablePath[MAX_PATH];
+            DWORD pathSize = MAX_PATH;
+            if (QueryFullProcessImageNameW(processHandle, 0, executablePath, &pathSize) != 0) {
+                ForegroundWindowName = QString::fromWCharArray(executablePath);
+            }
+            CloseHandle(processHandle);
+        }
+    }
+
+    return ForegroundWindowName;
+}
+
 
 /**
  * @brief TaskMonitor::AddProcessMap 私有接口-将数据添加到列表里
