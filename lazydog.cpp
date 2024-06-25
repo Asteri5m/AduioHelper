@@ -166,7 +166,10 @@ void LazyDog::InitSettingConfig()
         ui->checkBox_autostart->setChecked(true);
 
     if (lazyconfig.value(Config.Adminstart) == "true")
+    {
         ui->checkBox_adminstart->setChecked(true);
+        adminStart = true;
+    }
 
     if (lazyconfig.value(Config.Autochecknew) == "true")
     {

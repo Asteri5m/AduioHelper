@@ -18,6 +18,7 @@ SOURCES += \
 
 HEADERS += \
     PolicyConfig.h \
+    UAC.h \
     audiomanager.h \
     custom.h \
     lazydog.h \

@@ -89,6 +89,7 @@ private:
 
 public:
     bool autoHidden = true;
+    bool adminStart = false;
 
 private:
     void InitSystemTray();
@@ -101,6 +102,7 @@ private:
     void ShowDebugText(QString level, QString text);
     void SaveBindListToXml();
     BindList LoadBindListFromXml();
+    //json数据转为QMap
     QMap<QString, QString> JsonToMap(QByteArray data);
     void SaveSettingConfig();
     bool SetAutostartAtPoweron(bool setFlag);
