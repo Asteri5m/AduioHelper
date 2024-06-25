@@ -69,9 +69,7 @@ private slots:
     void on_keySequenceEdit_changemode_keySequenceChanged(const QKeySequence &keySequence);
     void on_keySequenceEdit_changeup_keySequenceChanged(const QKeySequence &keySequence);
     void on_keySequenceEdit_changedown_keySequenceChanged(const QKeySequence &keySequence);
-
     void on_checkBox_autohidden_clicked(bool checked);
-
     void on_checkBox_changemsg_clicked(bool checked);
 
 private:
@@ -105,6 +103,9 @@ private:
     BindList LoadBindListFromXml();
     QMap<QString, QString> JsonToMap(QByteArray data);
     void SaveSettingConfig();
+    bool SetAutostartAtPoweron(bool setFlag);
+    bool AddRegedit(QString regpath, QString key, QString value);
+    bool DelRegedit(QString regpath, QString key);
 
 protected:
     void closeEvent(QCloseEvent *event);

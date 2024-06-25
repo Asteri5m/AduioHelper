@@ -411,6 +411,88 @@ void LazyDog::SaveSettingConfig()
     ShowDebugText(D_Warn, "设置已更改，保存至配置文件失败，仅本次运行生效");
 }
 
+//设置开机自启动
+bool LazyDog::SetAutostartAtPoweron(bool setFlag)
+{
+    QString regPath = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+    QString key = "LazyDogTools";
+    bool result = false;
+    if(setFlag){
+        QString myPath = QString("\"%1\"").arg(QCoreApplication::applicationFilePath());
+        qDebug() << "exe path:" << myPath;
+        result = AddRegedit(regPath, key, myPath);
+    }else {
+        result = DelRegedit(regPath, key);
+    }
+
+    QString text = result ? "修改开机启动项成功": "修改开机启动项失败";
+    ShowDebugText(D_Info, text);
+    return result;
+}
+
+//添加注册表
+bool LazyDog::AddRegedit(QString regpath, QString key, QString value)
+{
+    // 将 QString 转换为 const wchar_t*，因为 Windows API 使用的是 wchar_t*
+    LPCWSTR subkey = reinterpret_cast<LPCWSTR>(regpath.utf16());
+    LPCWSTR entry = reinterpret_cast<LPCWSTR>(key.utf16());
+    LPCWSTR data = reinterpret_cast<LPCWSTR>(value.utf16());
+
+    // 打开注册表项
+    HKEY hKey;
+    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, subkey, 0, KEY_SET_VALUE, &hKey);
+    if (result != ERROR_SUCCESS) {
+        qDebug() << "Error opening registry key:" << result;
+        ShowDebugText(D_Error, "打开注册表失败，错误代码：" + QString::number(result));
+        return false;
+    }
+
+    // 设置注册表值
+    result = RegSetValueEx(hKey, entry, 0, REG_SZ, reinterpret_cast<const BYTE*>(data), (wcslen(data) + 1) * sizeof(wchar_t));
+    if (result != ERROR_SUCCESS) {
+        qDebug() << "Error setting registry value:" << result;
+        RegCloseKey(hKey);
+        ShowDebugText(D_Error, "设置注册表失败，错误代码：" + QString::number(result));
+        return false;
+    }
+
+    // 关闭注册表项
+    RegCloseKey(hKey);
+    ShowDebugText(D_Info, "修改注册表成功");
+    return true;
+}
+
+//删除注册表
+bool LazyDog::DelRegedit(QString regpath, QString key)
+{
+    // 将 QString 转换为 const wchar_t*，因为 Windows API 使用的是 wchar_t*
+    LPCWSTR subkey = reinterpret_cast<LPCWSTR>(regpath.utf16());
+    LPCWSTR entry = reinterpret_cast<LPCWSTR>(key.utf16());
+
+    // 打开注册表项
+    HKEY hKey;
+    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, subkey, 0, KEY_SET_VALUE, &hKey);
+    if (result != ERROR_SUCCESS) {
+        qDebug() << "Error opening registry key:" << result;
+        ShowDebugText(D_Error, "打开注册表失败，错误代码：" + QString::number(result));
+        return false;
+    }
+
+    // 删除注册表值
+    result = RegDeleteValue(hKey, entry);
+    if (result != ERROR_SUCCESS) {
+        qDebug() << "Error deleting registry value:" << result;
+        RegCloseKey(hKey);
+        ShowDebugText(D_Error, "设置注册表失败，错误代码：" + QString::number(result));
+        return false;
+    }
+
+    // 关闭注册表项
+    RegCloseKey(hKey);
+    ShowDebugText(D_Info, "修改注册表成功");
+    return true;
+}
+
 //重写关闭信号
 void LazyDog::closeEvent(QCloseEvent *event)
 {
@@ -720,7 +802,12 @@ void LazyDog::on_checkBox_autostart_clicked(bool checked)
 {
     QString boolString = checked ? "true" : "false";
     lazyconfig[Config.Autostart] = boolString;
-    SaveSettingConfig();
+    if(SetAutostartAtPoweron(checked)){
+        SaveSettingConfig();
+    }else {
+        ui->checkBox_autostart->setChecked(!checked);
+    }
+
 }
 
 //设置---管理员模式启动
