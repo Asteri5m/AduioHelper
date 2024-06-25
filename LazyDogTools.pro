@@ -4,7 +4,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
 
-LIBS += -lOle32 -lUser32 -lShlwapi -lversion
+LIBS += -lOle32 -lUser32 -lShlwapi -lversion -ladvapi32
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -31,7 +31,7 @@ FORMS += \
 RC_ICONS = LD_64.ico
 
 #添加版本
-VERSION = 0.0.1
+VERSION = 0.0.2
 
 
 # Default rules for deployment.
@@ -41,3 +41,6 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 RESOURCES += \
     images.qrc
+
+
+QMAKE_PROJECT_DEPTH = 0
