@@ -6,7 +6,7 @@
 
 # 速食手册
 
-![image-20231004030724341](https://github.com/Asteri5m/LazyDogtools/blob/main/img/image-20231004030724341.png)
+![image-20231004030724341](https://github.com/Asteri5m/AduioHelper/blob/main/img/image-20231004030724341.png)
 
 1. 首先打开需要帮你自动切换设备的程序，选中它
 2. 其次选择对应的音频设备
